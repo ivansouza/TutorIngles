@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tutor Inglês - Pronúncia BR</title>
+    
+    <!-- React & Tailwind via CDN -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-slate-50 select-none font-sans text-slate-800">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useCallback } = React;
+
+        // --- 1. BANCO DE DADOS (Pronúncia Aportuguesada) ---
+        // Aqui está a mágica: escrevemos como se lê em português!
+        const wordBank = {
+            // Sujeitos
+            "i": "ai", 
+            "you": "iú", 
+            "he": "rí", 
+            "she": "xí", 
+            "we": "u-í", 
+            "they": "dêi",
+            "the": "dê", 
+            "dog": "dóg", 
+            "cat": "két", 
+            "teacher": "tí-tcher", 
+            "friend": "frênd", 
+            "manager": "mê-ne-djer",
+            "dogs": "dógz", 
+            "cats": "kéts", 
+            "teachers": "tí-tchers", 
+            "everyone": "é-vri-uan",
+            
+            // Verbos
+            "like": "láic", 
+            "likes": "láics", 
+            "want": "uânt", 
+            "wants": "uânts", 
+            "need": "níd", 
+            "needs": "nídz", 
+            "have": "rév", 
+            "has": "rés",
+            "eat": "ít", 
+            "eats": "íts", 
+            "drink": "drinc", 
+            "drinks": "drincs",
+            "is": "íz", 
+            "are": "ár", 
+            "am": "ém", 
+            "go": "gou", 
+            "goes": "gouz",
+            
+            // Objetos / Coisas
+            "pizza": "pít-za", 
+            "coffee": "có-fi", 
+            "water": "uó-ter", 
+            "apple": "é-pol",
+            "book": "búc",
+            "car": "cár",
+            "money": "mâ-nei",
+            
+            // Adjetivos / Advérbios
+            "happy": "ré-pi", 
+            "sad": "séd", 
+            "good": "gud", 
+            "bad": "béd", 
+            "tired": "tái-erd",
+            "today": "tchu-dêi", 
+            "now": "náu", 
+            "here": "rír", 
+            "there": "dér",
+            "very": "vé-ri",
+            
+            // Conectivos / Lugares
+            "to": "tchu", 
+            "school": "scúl", 
+            "home": "rôum", 
+            "park": "párc", 
+            "work": "uôrc",
+            "a": "a", 
+            "an": "an"
+        };
+
+        // Motor Gramatical (Mesmo cérebro inteligente de antes)
+        const grammarEngine = {
+            subjects: {
+                singular_1st: ["I"],
+                singular_3rd: ["He", "She", "The dog", "The cat", "The teacher", "My friend"],
+                plural: ["We", "They", "The dogs", "The cats", "The teachers"]
+            },
+            verbs: {
+                be: { singular_1st: "am", singular_3rd: "is", plural: "are" },
+                action: {
+                    base: ["like", "want", "need", "have", "eat", "drink"],
+                    to3rd: (v) => v === "have" ? "has" : v + "s"
+                },
+                movement: {
+                    base: ["go"],
+                    to3rd: (v) => "goes"
+                }
+            },
+            objects: ["pizza", "coffee", "water", "an apple"],
+            adjectives: ["happy", "sad", "good", "tired", "very good"],
+            places: ["to school", "home", "to the park", "to work"]
+        };
+
+        const generateSentence = () => {
+            const type = Math.floor(Math.random() * 3);
+            const subjTypes = ["singular_1st", "singular_3rd", "plural"];
+            const selectedSubjType = subjTypes[Math.floor(Math.random() * subjTypes.length)];
+            const subject = grammarEngine.subjects[selectedSubjType][Math.floor(Math.random() * grammarEngine.subjects[selectedSubjType].length)];
+
+            let verb = "", complement = "";
+
+            if (type === 0) { // BE
+                verb = grammarEngine.verbs.be[selectedSubjType];
+                complement = grammarEngine.adjectives[Math.floor(Math.random() * grammarEngine.adjectives.length)];
+            } else if (type === 1) { // ACTION
+                const base = grammarEngine.verbs.action.base[Math.floor(Math.random() * grammarEngine.verbs.action.base.length)];
+                verb = selectedSubjType === "singular_3rd" ? grammarEngine.verbs.action.to3rd(base) : base;
+                complement = grammarEngine.objects[Math.floor(Math.random() * grammarEngine.objects.length)];
+            } else { // MOVEMENT
+                verb = selectedSubjType === "singular_3rd" ? "goes" : "go";
+                complement = grammarEngine.places[Math.floor(Math.random() * grammarEngine.places.length)];
+            }
+
+            return `${subject} ${verb} ${complement}`;
+        };
+
+        // --- 2. COMPONENTE DE ÍCONE ---
+        const Icon = ({ name, className }) => {
+            const iconRef = useRef(null);
+            useEffect(() => {
+                if (window.lucide && iconRef.current) {
+                    window.lucide.createIcons({
+                        attrs: { class: className },
+                        nameAttr: 'data-lucide',
+                        icons: { [name]: iconRef.current }
+                    });
+                }
+            }, [name, className]);
+            return <i ref={iconRef} data-lucide={name}></i>;
+        };
+
+        // --- 3. APLICAÇÃO ---
+        const EnglishTutor = () => {
+            const [phrase, setPhrase] = useState("");
+            const [phonetics, setPhonetics] = useState("");
+            const [status, setStatus] = useState('idle');
+            const [feedback, setFeedback] = useState(null);
+            const [transcript, setTranscript] = useState("");
+            const [score, setScore] = useState(0);
+            const [mode, setMode] = useState('voice');
+            const [message, setMessage] = useState("");
+            
+            const recognitionRef = useRef(null);
+
+            const newPhrase = useCallback(() => {
+                const p = generateSentence();
+                setPhrase(p);
+                
+                // Conversão para pronúncia BR
+                const phon = p.toLowerCase()
+                    .replace(/[.,]/g, "")
+                    .split(" ")
+                    .map(w => wordBank[w] || w) // Se não achar, usa a própria palavra
+                    .join(" ");
+                
+                // Sem barras, estilo limpo
+                setPhonetics(phon);
+                
+                setFeedback(null);
+                setTranscript("");
+                setMessage("");
+                setStatus('idle');
+            }, []);
+
+            useEffect(() => { newPhrase(); }, []);
+
+            const speak = () => {
+                if (!window.speechSynthesis) return setMessage("Sem voz no navegador");
+                window.speechSynthesis.cancel();
+                const u = new SpeechSynthesisUtterance(phrase);
+                u.lang = 'en-US'; u.rate = 0.8;
+                // Tenta achar voz Google
+                const v = window.speechSynthesis.getVoices().find(v => v.lang === 'en-US' && v.name.includes("Google")) || window.speechSynthesis.getVoices().find(v => v.lang === 'en-US');
+                if (v) u.voice = v;
+                window.speechSynthesis.speak(u);
+            };
+
+            const listen = () => {
+                setMessage("");
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                if (!SpeechRecognition) { setMode('text'); return setMessage("Use modo texto"); }
+
+                try {
+                    if (recognitionRef.current) recognitionRef.current.abort();
+                    const recognition = new SpeechRecognition();
+                    recognition.lang = 'en-US'; recognition.continuous = false; recognition.interimResults = false;
+
+                    recognition.onstart = () => setStatus('listening');
+                    recognition.onresult = (e) => {
+                        const t = e.results[0][0].transcript;
+                        setTranscript(t);
+                        validate(t);
+                        setStatus('idle');
+                    };
+                    recognition.onerror = (e) => {
+                        setStatus('idle');
+                        if (e.error === 'not-allowed') setMessage("Permissão negada");
+                        else if (e.error === 'no-speech') setMessage("Fale mais alto");
+                        else { setMode('text'); setMessage("Erro. Digite."); }
+                    };
+                    recognitionRef.current = recognition;
+                    recognition.start();
+                } catch (e) { setMode('text'); setMessage("Erro navegador"); }
+            };
+
+            const validate = (input) => {
+                const cleanInput = input.toLowerCase().replace(/[^a-z ]/g, "").trim();
+                const cleanTarget = phrase.toLowerCase().replace(/[^a-z ]/g, "").trim();
+                if (cleanInput.includes(cleanTarget) || cleanTarget.includes(cleanInput)) {
+                    setFeedback('correct');
+                    setScore(s => s + 10);
+                    setMessage("Perfeito!");
+                    speak(); // Fala a frase correta como reforço
+                } else {
+                    setFeedback('incorrect');
+                    setMessage("Quase! Tente de novo.");
+                }
+            };
+
+            return (
+                <div className="min-h-screen pb-10 max-w-md mx-auto bg-slate-50 shadow-2xl flex flex-col">
+                    
+                    {/* Header Verde/Dourado estilo App de Línguas */}
+                    <div className="bg-emerald-600 text-white p-4 shadow-lg sticky top-0 z-10 flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                            <Icon name="languages" className="w-6 h-6" />
+                            <span className="font-bold text-lg">Tutor BR</span>
+                        </div>
+                        <div className="bg-emerald-800/50 px-3 py-1 rounded-full flex gap-1 items-center font-bold text-sm border border-emerald-400/30">
+                            <Icon name="star" className="w-4 h-4 text-yellow-400 fill-current" /> {score}
+                        </div>
+                    </div>
+
+                    <main className="p-4 flex flex-col gap-6 mt-4 flex-1">
+                        
+                        {/* CARD PRINCIPAL */}
+                        <div className="bg-white rounded-3xl shadow-xl border-b-4 border-slate-200 p-8 flex flex-col items-center text-center gap-4 relative">
+                            
+                            {/* Botão de Trocar no topo direito */}
+                            <button onClick={newPhrase} className="absolute top-4 right-4 text-slate-400 hover:text-emerald-600 transition-colors">
+                                <Icon name="refresh-cw" className="w-5 h-5" />
+                            </button>
+
+                            {/* FRASE PRINCIPAL */}
+                            <div className="mt-4 mb-2">
+                                <h2 className="text-3xl font-bold text-slate-800 leading-tight">
+                                    {phrase}
+                                </h2>
+                                
+                                {/* Pronúncia Aportuguesada (Destaque Amarelo/Laranja) */}
+                                <p className="text-xl text-orange-500 font-medium mt-3 italic tracking-wide">
+                                    {phonetics}
+                                </p>
+                            </div>
+
+                            {/* Botão Ouvir */}
+                            <button 
+                                onClick={speak}
+                                className="w-full py-3 rounded-2xl bg-indigo-50 text-indigo-600 hover:bg-indigo-100 font-bold flex items-center justify-center gap-2 transition-colors active:scale-95"
+                            >
+                                <Icon name="volume-2" className="w-6 h-6" /> Ouvir Nativo
+                            </button>
+                            
+                            <hr className="w-full border-slate-100 my-2" />
+
+                            {/* Área do Microfone */}
+                            <div className="w-full flex flex-col items-center h-32 justify-center">
+                                {mode === 'voice' ? (
+                                    <div className="relative">
+                                        {/* Animação de Onda quando ouve */}
+                                        {status === 'listening' && (
+                                            <span className="absolute inset-0 rounded-full bg-emerald-400 opacity-20 animate-ping"></span>
+                                        )}
+                                        
+                                        <button
+                                            onClick={listen}
+                                            disabled={status === 'listening' || feedback === 'correct'}
+                                            className={`relative z-10 w-24 h-24 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-90 border-b-4
+                                                ${status === 'listening' ? 'bg-red-500 text-white border-red-700 translate-y-1' : 
+                                                feedback === 'correct' ? 'bg-emerald-500 text-white border-emerald-700' : 
+                                                'bg-indigo-600 text-white border-indigo-800'}`}
+                                        >
+                                            <Icon name="mic" className="w-10 h-10" />
+                                        </button>
+                                        
+                                        <p className="mt-4 text-xs text-slate-400 font-bold tracking-widest uppercase">
+                                            {status === 'listening' ? "Ouvindo..." : "Toque para Falar"}
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <form onSubmit={(e) => { e.preventDefault(); validate(transcript); }} className="w-full flex gap-2 animate-in fade-in">
+                                        <input 
+                                            autoFocus
+                                            className="flex-1 p-4 border-2 border-slate-200 rounded-2xl outline-none focus:border-emerald-500 text-lg bg-slate-50" 
+                                            placeholder="Escreva aqui..." 
+                                            value={transcript}
+                                            onChange={e => setTranscript(e.target.value)}
+                                        />
+                                        <button type="submit" className="bg-emerald-600 text-white px-4 rounded-2xl font-bold hover:bg-emerald-700">OK</button>
+                                    </form>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Feedback (Sucesso/Erro) */}
+                        {(feedback || message) && (
+                            <div className={`p-4 rounded-2xl border-l-8 shadow-sm flex items-center gap-4 animate-bounce-short ${
+                                feedback === 'correct' ? 'bg-white border-emerald-500 text-emerald-800' : 
+                                feedback === 'incorrect' ? 'bg-white border-red-500 text-red-800' : 'bg-white border-slate-300 text-slate-600'
+                            }`}>
+                                {feedback === 'correct' ? <Icon name="check-circle" className="text-emerald-500 w-8 h-8"/> : 
+                                feedback === 'incorrect' ? <Icon name="x-circle" className="text-red-500 w-8 h-8"/> : 
+                                <Icon name="info" className="text-slate-400 w-8 h-8"/>}
+                                
+                                <div>
+                                    <p className="font-extrabold uppercase tracking-wider text-sm">
+                                        {message || (feedback === 'correct' ? "Excelente!" : "Tente Novamente")}
+                                    </p>
+                                    {transcript && mode === 'voice' && <p className="text-xs mt-1 font-mono bg-black/5 p-1 rounded">Ouvi: "{transcript}"</p>}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Controles Inferiores */}
+                        <div className="flex gap-4 mt-auto">
+                            <button 
+                                onClick={() => setMode(mode === 'voice' ? 'text' : 'voice')}
+                                className="p-4 rounded-2xl bg-white border-b-4 border-slate-200 text-slate-500 hover:bg-slate-50 active:translate-y-1 active:border-b-0 transition-all"
+                            >
+                                <Icon name={mode === 'voice' ? 'keyboard' : 'mic'} className="w-6 h-6" />
+                            </button>
+                            
+                            <button 
+                                onClick={newPhrase}
+                                className="flex-1 bg-emerald-600 text-white py-4 rounded-2xl font-bold text-lg shadow-emerald-200 hover:bg-emerald-700 active:scale-[0.98] border-b-4 border-emerald-800 active:border-b-0 active:translate-y-1 transition-all flex items-center justify-center gap-2"
+                            >
+                                Próxima Frase <Icon name="arrow-right" className="w-6 h-6" />
+                            </button>
+                        </div>
+                    </main>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<EnglishTutor />);
+    </script>
+</body>
+</html>
+
