@@ -2,56 +2,32 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tutor Visual - Stable</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tutor Mobile Fit</title>
     
-    <!-- Carregamento Seguro das Bibliotecas -->
+    <!-- Bibliotecas -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Ícones Lucide (Versão específica para estabilidade) -->
     <script src="https://unpkg.com/lucide@0.263.1"></script>
+    
+    <style>
+        /* Garante que o app ocupe a altura real da tela mobile */
+        body, html { height: 100%; overflow: hidden; overscroll-behavior: none; }
+        #root { height: 100%; }
+        /* Evita seleção de texto acidental ao tocar rápido */
+        .no-select { -webkit-user-select: none; user-select: none; }
+    </style>
 </head>
-<body class="bg-slate-50 select-none text-slate-800 font-sans">
+<body class="bg-slate-50 text-slate-800 font-sans no-select">
     <div id="root"></div>
 
     <script type="text/babel">
         const { useState, useEffect, useRef, useCallback } = React;
 
-        // --- 0. PROTEÇÃO DE ERROS (Error Boundary) ---
-        class ErrorBoundary extends React.Component {
-            constructor(props) { super(props); this.state = { hasError: false }; }
-            static getDerivedStateFromError(error) { return { hasError: true }; }
-            render() {
-                if (this.state.hasError) {
-                    return <div className="p-10 text-center"><h1>Algo deu errado.</h1><button onClick={()=>window.location.reload()} className="bg-blue-500 text-white p-2 rounded mt-4">Recarregar</button></div>;
-                }
-                return this.props.children;
-            }
-        }
-
-        // --- 1. ÍCONES SEGUROS ---
-        // Se o Lucide falhar, mostra um texto simples em vez de travar
-        const Icon = ({ name, className }) => {
-            const iRef = useRef(null);
-            useEffect(() => {
-                try {
-                    if (window.lucide && iRef.current) {
-                        window.lucide.createIcons({
-                            attrs: { class: className },
-                            nameAttr: 'data-lucide',
-                            icons: { [name]: iRef.current }
-                        });
-                    }
-                } catch (e) { console.warn("Icon error", e); }
-            }, [name, className]);
-            return <i ref={iRef} data-lucide={name}></i>;
-        };
-
-        // --- 2. DADOS SIMPLIFICADOS E SEGUROS ---
-        const safeDictionary = {
+        // --- Dicionário Seguro ---
+        const dictionary = {
             subjects: [
                 { en: "I", pt: "Eu", pron: "ai", is3rd: false },
                 { en: "You", pt: "Você", pron: "iú", is3rd: false },
@@ -64,7 +40,7 @@
                 { base: "like", pt: "gosto de", pron: "láic", s: "likes", spt: "gosta de", spron: "láics" },
                 { base: "want", pt: "quero", pron: "uânt", s: "wants", spt: "quer", spron: "uânts" },
                 { base: "need", pt: "preciso de", pron: "níd", s: "needs", spt: "precisa de", spron: "nídz" },
-                { base: "have", pt: "tenho", pron: "rév", s: "has", spt: "tem", spron: "rés" } // Have é irregular
+                { base: "have", pt: "tenho", pron: "rév", s: "has", spt: "tem", spron: "rés" }
             ],
             complements: [
                 { en: "pizza", pt: "pizza", pron: "pít-za" },
@@ -74,91 +50,68 @@
             ]
         };
 
-        const generateSafeData = () => {
-            try {
-                const sub = safeDictionary.subjects[Math.floor(Math.random() * safeDictionary.subjects.length)];
-                const verb = safeDictionary.verbs[Math.floor(Math.random() * safeDictionary.verbs.length)];
-                const comp = safeDictionary.complements[Math.floor(Math.random() * safeDictionary.complements.length)];
+        const generateData = () => {
+            const s = dictionary.subjects[Math.floor(Math.random() * dictionary.subjects.length)];
+            const v = dictionary.verbs[Math.floor(Math.random() * dictionary.verbs.length)];
+            const c = dictionary.complements[Math.floor(Math.random() * dictionary.complements.length)];
+            
+            // Lógica simples de conjugação visual
+            let vEn = s.is3rd ? v.s : v.base;
+            let vPt = s.is3rd ? v.spt : v.pt; 
+            let vPron = s.is3rd ? v.spron : v.pron;
+            
+            // Ajustes plurais básicos para PT
+            if(s.en === "We" && v.pt.endsWith('o')) vPt = v.pt.slice(0,-1) + 'amos';
+            if(s.en === "We" && v.base === 'have') vPt = 'temos';
+            if(s.en === "They" && v.pt.endsWith('o')) vPt = v.pt.slice(0,-1) + 'am';
+            if(s.en === "They" && v.base === 'have') vPt = 'têm';
 
-                // Lógica de 3ª pessoa simples (He/She likes vs I like)
-                const is3rd = sub.is3rd;
-                const verbEn = is3rd ? verb.s : verb.base;
-                
-                // Ajuste grosseiro do PT para 3ª pessoa (ex: Eu gosto -> Ele gosta)
-                // Se o verbo PT termina em 'o' (gosto), troca por 'a' (gosta). Regra básica.
-                let verbPt = verb.pt;
-                if (is3rd && verb.pt.endsWith('o')) {
-                    verbPt = verb.pt.slice(0, -1) + 'a'; 
-                    if (verb.base === 'have') verbPt = 'tem'; // Exceção manual
-                }
-                // Ajuste grosseiro para Nós (We)
-                if (sub.en === 'We') {
-                    if (verb.pt.endsWith('o')) verbPt = verb.pt.slice(0, -1) + 'amos'; // gostamos
-                    if (verb.base === 'have') verbPt = 'temos';
-                }
-                // Ajuste grosseiro para Eles (They) - simplificado para singular na visualização ou 'am'
-                if (sub.en === 'They') {
-                     if (verb.pt.endsWith('o')) verbPt = verb.pt.slice(0, -1) + 'am'; // gostam
-                     if (verb.base === 'have') verbPt = 'têm';
-                }
-
-                const verbPron = is3rd ? verb.spron : verb.pron;
-
-                return {
-                    pt: `${sub.pt} ${verbPt} ${comp.pt}`,
-                    en: `${sub.en} ${verbEn} ${comp.en}`,
-                    pron: `${sub.pron} ${verbPron} ${comp.pron}`
-                };
-            } catch (e) {
-                console.error("Generator error", e);
-                return { en: "Error", pt: "Erro", pron: "Error" };
-            }
+            return {
+                pt: `${s.pt} ${vPt} ${c.pt}`,
+                en: `${s.en} ${vEn} ${c.en}`,
+                pron: `${s.pron} ${vPron} ${c.pron}`
+            };
         };
 
-        // --- 3. APLICAÇÃO ---
+        const Icon = ({ name, className }) => {
+            const r = useRef(null);
+            useEffect(() => {
+                if(window.lucide && r.current) window.lucide.createIcons({
+                    attrs: {class: className}, nameAttr: 'data-lucide', icons: {[name]: r.current}
+                });
+            }, [name]);
+            return <i ref={r} data-lucide={name}></i>;
+        };
+
         const App = () => {
-            const [data, setData] = useState(null);
+            const [data, setData] = useState(generateData());
             const [status, setStatus] = useState('idle');
             const [feedback, setFeedback] = useState(null);
-            const [transcript, setTranscript] = useState("");
             const [mode, setMode] = useState('voice');
-            const recognitionRef = useRef(null);
-
-            // Carregar primeira frase
-            useEffect(() => {
-                setData(generateSafeData());
-            }, []);
-
-            const nextPhrase = () => {
+            const [transcript, setTranscript] = useState("");
+            
+            const next = () => {
+                setData(generateData());
+                setStatus('idle');
                 setFeedback(null);
                 setTranscript("");
-                setStatus('idle');
-                setData(generateSafeData());
             };
 
             const speak = () => {
-                if (!data) return;
                 window.speechSynthesis.cancel();
                 const u = new SpeechSynthesisUtterance(data.en);
-                u.lang = 'en-US';
-                u.rate = 0.8;
-                // Tenta pegar voz Google de forma segura
-                const voices = window.speechSynthesis.getVoices();
-                const v = voices.find(v => v.lang === 'en-US' && v.name.includes("Google")) || voices.find(v => v.lang === 'en-US');
-                if (v) u.voice = v;
+                u.lang = 'en-US'; u.rate = 0.8;
+                const v = window.speechSynthesis.getVoices().find(v=>v.lang==='en-US' && v.name.includes('Google')) || window.speechSynthesis.getVoices().find(v=>v.lang==='en-US');
+                if(v) u.voice = v;
                 window.speechSynthesis.speak(u);
             };
 
             const listen = () => {
-                if (!window.SpeechRecognition && !window.webkitSpeechRecognition) {
-                    setMode('text'); return alert("Sem suporte a voz");
-                }
-                const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-                
+                const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+                if(!SR) { setMode('text'); return alert("Use modo texto"); }
                 try {
-                    const rec = new Recognition();
+                    const rec = new SR();
                     rec.lang = 'en-US';
-                    rec.continuous = false;
                     rec.onstart = () => setStatus('listening');
                     rec.onend = () => { if(status==='listening') setStatus('idle'); };
                     rec.onresult = (e) => {
@@ -167,114 +120,100 @@
                         validate(t);
                     };
                     rec.start();
-                    recognitionRef.current = rec;
-                } catch(e) {
-                    console.error(e);
-                    setStatus('idle');
-                }
+                } catch(e) { setStatus('idle'); }
             };
 
-            const validate = (text) => {
-                if (!data) return;
-                const cleanText = text.toLowerCase().replace(/[^a-z]/g, '');
-                const cleanTarget = data.en.toLowerCase().replace(/[^a-z]/g, '');
-                if (cleanText.includes(cleanTarget) || cleanTarget.includes(cleanText)) {
-                    setFeedback('correct');
-                    speak(); // Fala para reforçar
+            const validate = (t) => {
+                const cleanT = t.toLowerCase().replace(/[^a-z]/g, '');
+                const cleanEn = data.en.toLowerCase().replace(/[^a-z]/g, '');
+                if(cleanT.includes(cleanEn) || cleanEn.includes(cleanT)) {
+                    setFeedback('correct'); speak();
                 } else {
                     setFeedback('incorrect');
                 }
             };
 
-            if (!data) return <div className="p-10 text-center">Carregando...</div>;
-
             return (
-                <div className="min-h-screen bg-slate-50 flex flex-col font-sans max-w-md mx-auto shadow-2xl">
+                // h-[100dvh] garante altura total dinâmica no mobile
+                <div className="h-[100dvh] flex flex-col bg-slate-50 max-w-md mx-auto shadow-2xl overflow-hidden">
                     
-                    {/* Header Clean */}
-                    <div className="bg-white p-4 flex justify-between items-center shadow-sm sticky top-0 z-10">
-                        <span className="font-bold text-slate-700 text-lg">Tutor Visual</span>
-                        <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-bold">BR Edition</div>
-                    </div>
+                    {/* Header Compacto */}
+                    <header className="bg-white p-3 flex justify-between items-center shadow-sm shrink-0 z-10">
+                        <span className="font-bold text-slate-700">Tutor Visual</span>
+                        <div className="bg-green-100 text-green-800 px-2 py-0.5 rounded text-xs font-bold">BR Edition</div>
+                    </header>
 
-                    <main className="flex-1 p-4 flex flex-col gap-4">
+                    {/* Conteúdo Principal Flexível */}
+                    <main className="flex-1 flex flex-col p-3 gap-3 overflow-hidden">
                         
-                        {/* CARD VISUAL */}
-                        <div className="bg-white rounded-3xl shadow-lg border border-slate-100 p-6 flex flex-col gap-5 relative">
+                        {/* Card: Reduzi padding (p-4) para ganhar espaço */}
+                        <div className="bg-white rounded-2xl shadow border border-slate-100 p-4 flex flex-col gap-3 relative shrink-0">
                             
-                            <button onClick={nextPhrase} className="absolute top-4 right-4 p-2 bg-slate-50 rounded-full hover:bg-slate-100 text-slate-400">
+                            <button onClick={next} className="absolute top-3 right-3 text-slate-300 p-1">
                                 <Icon name="refresh-cw" className="w-4 h-4" />
                             </button>
 
-                            {/* PT */}
+                            {/* Linhas de Texto Compactas */}
                             <div className="flex items-center gap-3">
-                                <span className="text-2xl filter drop-shadow-sm">🇧🇷</span>
-                                <span className="text-xl font-bold text-slate-800 leading-snug">{data.pt}</span>
+                                <span className="text-xl">🇧🇷</span>
+                                <span className="text-lg font-bold text-slate-800 leading-tight">{data.pt}</span>
                             </div>
-
-                            {/* EN */}
                             <div className="flex items-center gap-3">
-                                <span className="text-2xl filter drop-shadow-sm">🇺🇸</span>
-                                <span className="text-xl font-bold text-yellow-500 leading-snug">{data.en}</span>
+                                <span className="text-xl">🇺🇸</span>
+                                <span className="text-lg font-bold text-yellow-500 leading-tight">{data.en}</span>
                             </div>
-
-                            {/* PRON */}
                             <div className="flex items-center gap-3">
-                                <span className="text-2xl filter drop-shadow-sm">🗣️</span>
-                                <span className="text-xl font-bold text-orange-500 italic leading-snug">{data.pron}</span>
+                                <span className="text-xl">🗣️</span>
+                                <span className="text-lg font-bold text-orange-500 italic leading-tight">{data.pron}</span>
                             </div>
                         </div>
 
-                        {/* Botão OUVIR */}
-                        <button onClick={speak} className="bg-indigo-50 text-indigo-600 font-bold py-4 rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-transform">
-                            <Icon name="volume-2" className="w-5 h-5" /> OUVIR NATIVO
+                        {/* Botão Ouvir Compacto */}
+                        <button onClick={speak} className="bg-indigo-50 text-indigo-600 font-bold py-3 rounded-xl flex items-center justify-center gap-2 active:bg-indigo-100 shrink-0">
+                            <Icon name="volume-2" className="w-5 h-5" /> OUVIR
                         </button>
 
-                        {/* ÁREA INTERATIVA */}
-                        <div className="flex-1 flex flex-col justify-center items-center gap-4 min-h-[150px]">
+                        {/* Área Microfone (Flexível) - Ocupa o espaço que sobra, mas centralizado */}
+                        <div className="flex-1 flex flex-col justify-center items-center min-h-0">
                             {mode === 'voice' ? (
                                 <div className="relative">
                                     {status === 'listening' && <div className="absolute inset-0 bg-green-400 rounded-full animate-ping opacity-30"></div>}
                                     <button 
                                         onClick={listen}
-                                        className={`w-20 h-20 rounded-full flex items-center justify-center text-white shadow-xl transition-all active:scale-90 relative z-10
+                                        className={`w-20 h-20 rounded-full flex items-center justify-center text-white shadow-xl transition-all active:scale-95 relative z-10
                                             ${status === 'listening' ? 'bg-red-500 scale-110' : 
                                               feedback === 'correct' ? 'bg-green-500' : 'bg-indigo-600'}`}
                                     >
-                                        <Icon name="mic" className="w-8 h-8" />
+                                        <Icon name="mic" className="w-9 h-9" />
                                     </button>
                                 </div>
                             ) : (
                                 <div className="w-full flex gap-2">
-                                    <input 
-                                        className="flex-1 p-3 border-2 border-slate-200 rounded-xl outline-none focus:border-green-500" 
-                                        placeholder="Digite..." 
-                                        value={transcript}
-                                        onChange={e => setTranscript(e.target.value)}
-                                    />
-                                    <button onClick={() => validate(transcript)} className="bg-green-500 text-white px-4 rounded-xl font-bold">OK</button>
+                                    <input className="flex-1 p-2 border rounded-lg" value={transcript} onChange={e=>setTranscript(e.target.value)} placeholder="Digite..." />
+                                    <button onClick={()=>validate(transcript)} className="bg-green-500 text-white px-3 rounded-lg">OK</button>
                                 </div>
                             )}
 
-                            <div className="text-center h-8">
-                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                                    {status === 'listening' ? "Ouvindo..." : "Toque para falar"}
-                                </p>
-                                {feedback && (
-                                    <p className={`font-bold mt-1 ${feedback==='correct' ? 'text-green-600' : 'text-red-500'}`}>
-                                        {feedback === 'correct' ? "PERFEITO!" : "TENTE DE NOVO"}
-                                    </p>
+                            <div className="h-6 mt-2 text-center">
+                                {feedback ? (
+                                    <span className={`font-bold text-sm ${feedback==='correct'?'text-green-600':'text-red-500'}`}>
+                                        {feedback === 'correct' ? "MUITO BEM!" : "TENTE DE NOVO"}
+                                    </span>
+                                ) : (
+                                    <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                                        {status === 'listening' ? "Ouvindo..." : "Toque para falar"}
+                                    </span>
                                 )}
                             </div>
                         </div>
 
-                        {/* CONTROLES RODA PÉ */}
-                        <div className="flex gap-3 mt-auto">
-                            <button onClick={() => setMode(m => m === 'voice' ? 'text' : 'voice')} className="p-4 bg-white border border-slate-200 rounded-xl text-slate-500">
+                        {/* Rodapé Fixo na base do flex */}
+                        <div className="flex gap-3 shrink-0 mt-auto pb-1">
+                            <button onClick={()=>setMode(m=>m==='voice'?'text':'voice')} className="p-3 bg-white border border-slate-200 rounded-xl text-slate-500">
                                 <Icon name="keyboard" className="w-6 h-6" />
                             </button>
-                            <button onClick={nextPhrase} className="flex-1 bg-slate-800 text-white font-bold py-4 rounded-xl flex justify-center items-center gap-2 shadow-lg active:scale-95 transition-transform">
-                                Próxima <Icon name="arrow-right" className="w-5 h-5" />
+                            <button onClick={next} className="flex-1 bg-slate-800 text-white font-bold py-3 rounded-xl flex justify-center items-center gap-2 shadow-lg active:scale-95">
+                                PRÓXIMA <Icon name="arrow-right" className="w-5 h-5" />
                             </button>
                         </div>
 
@@ -284,7 +223,7 @@
         };
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<ErrorBoundary><App /></ErrorBoundary>);
+        root.render(<App />);
     </script>
 </body>
 </html>
