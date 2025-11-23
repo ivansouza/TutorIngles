@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI English Tutor - Infinite</title>
+    
+    <!-- React e ReactDOM via CDN (para não precisar instalar Node.js) -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel para traduzir o código React no navegador -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Tailwind CSS para o estilo -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Ícones Lucide -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-slate-50">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        // --- CÓDIGO DO APP (Adaptado para rodar direto no HTML) ---
+        const { useState, useEffect, useRef, useCallback } = React;
+
+        // Ícones (Simulação simples pois Lucide-React precisa de build)
+        const Icon = ({ name, color = "currentColor", className }) => {
+            return <i data-lucide={name} className={className} style={{color}}></i>;
+        };
+
+        // --- DADOS ---
+        const vocabulary = {
+            beginner: {
+                subjects: ["I", "You", "He", "She", "The dog", "The cat", "My friend", "The teacher"],
+                verbs: ["like", "want", "have", "see", "need", "eat", "drink", "play"],
+                objects: ["pizza", "water", "coffee", "a book", "the car", "a game", "the house", "an apple"],
+                adjectives: ["good", "bad", "happy", "sad", "big", "small", "hot", "cold"],
+                places: ["at home", "at school", "in the park", "in the kitchen"]
+            },
+            intermediate: {
+                subjects: ["The manager", "Our team", "The doctor", "My neighbor", "The system", "Everyone"],
+                verbs: ["suggested", "decided", "finished", "started", "enjoyed", "forgot", "remembered"],
+                actions: ["to go", "working", "traveling", "reading", "sleeping", "learning"],
+                time: ["yesterday", "last week", "recently", "usually", "sometimes", "never"],
+                connectors: ["because", "but", "so", "and"]
+            },
+            advanced: {
+                subjects: ["The government", "The algorithm", "The philosophy", "The economy", "Scientists"],
+                verbs: ["analyzed", "implemented", "discovered", "negotiated", "established", "questioned"],
+                abstracts: ["the solution", "a new strategy", "the complex theory", "significant results"],
+                conditions: ["despite the rain", "due to the cost", "in the long run", "hypothetically speaking"],
+                adverbs: ["successfully", "carefully", "immediately", "unfortunately", "presumably"]
+            }
+        };
+
+        const generateRandomSentence = (level) => {
+            const rand = (arr) => arr[Math.floor(Math.random() * arr.length)];
+            
+            if (level === 'beginner') {
+                const pattern = Math.floor(Math.random() * 3);
+                if (pattern === 0) return `${rand(vocabulary.beginner.subjects)} ${rand(vocabulary.beginner.verbs)}s ${rand(vocabulary.beginner.objects)}`;
+                if (pattern === 1) return `${rand(vocabulary.beginner.subjects)} is ${rand(vocabulary.beginner.adjectives)}`;
+                return `${rand(vocabulary.beginner.subjects)} ${rand(vocabulary.beginner.verbs)}s ${rand(vocabulary.beginner.objects)} ${rand(vocabulary.beginner.places)}`;
+            } 
+            
+            if (level === 'intermediate') {
+                const pattern = Math.floor(Math.random() * 2);
+                if (pattern === 0) return `${rand(vocabulary.intermediate.subjects)} ${rand(vocabulary.intermediate.verbs)} ${rand(vocabulary.intermediate.actions)} ${rand(vocabulary.intermediate.time)}`;
+                return `${rand(vocabulary.beginner.subjects)} wanted ${rand(vocabulary.intermediate.actions)} ${vocabulary.intermediate.connectors[0]} it was ${rand(vocabulary.beginner.adjectives)}`;
+            }
+
+            return `${rand(vocabulary.advanced.adverbs)}, ${rand(vocabulary.advanced.subjects)} ${rand(vocabulary.advanced.verbs)} ${rand(vocabulary.advanced.abstracts)} ${rand(vocabulary.advanced.conditions)}`;
+        };
+
+        // --- COMPONENTE PRINCIPAL ---
+        const EnglishTutor = () => {
+            const [level, setLevel] = useState('beginner');
+            const [currentPhrase, setCurrentPhrase] = useState("");
+            const [history, setHistory] = useState(new Set());
+            const [status, setStatus] = useState('idle');
+            const [feedback, setFeedback] = useState(null);
+            const [transcript, setTranscript] = useState("");
+            const [score, setScore] = useState(0);
+            const [mode, setMode] = useState('voice');
+            const [message, setMessage] = useState("");
+            
+            const recognitionRef = useRef(null);
+
+            // Hook para atualizar ícones Lucide após renderização
+            useEffect(() => {
+                if (window.lucide) {
+                    window.lucide.createIcons();
+                }
+            });
+
+            const generateNewPhrase = useCallback(() => {
+                let newPhrase = "";
+                let attempts = 0;
+                do {
+                    newPhrase = generateRandomSentence(level);
+                    attempts++;
+                } while (history.has(newPhrase) && attempts < 10);
+
+                const newHistory = new Set(history);
+                newHistory.add(newPhrase);
+                if (newHistory.size > 50) {
+                    const firstItem = newHistory.values().next().value;
+                    newHistory.delete(firstItem);
+                }
+                
+                setHistory(newHistory);
+                setCurrentPhrase(newPhrase);
+                setFeedback(null);
+                setTranscript("");
+                setMessage("");
+                setStatus('idle');
+            }, [level, history]);
+
+            useEffect(() => {
+                generateNewPhrase();
+            }, [level]);
+
+            const speak = () => {
+                if (!window.speechSynthesis) {
+                    setMessage("Navegador sem suporte a voz.");
+                    return;
+                }
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(currentPhrase);
+                utterance.lang = 'en-US';
+                utterance.rate = 0.8;
+                
+                // Tentar pegar vozes
+                const voices = window.speechSynthesis.getVoices();
+                const enVoice = voices.find(v => v.lang === 'en-US' && v.name.includes("Google")) || voices.find(v => v.lang === 'en-US');
+                if (enVoice) utterance.voice = enVoice;
+
+                window.speechSynthesis.speak(utterance);
+            };
+
+            const listen = () => {
+                setMessage("");
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                
+                if (!SpeechRecognition) {
+                    setMode('text');
+                    setMessage("Navegador sem suporte a Mic.");
+                    return;
+                }
+
+                try {
+                    if (recognitionRef.current) recognitionRef.current.abort();
+                    const recognition = new SpeechRecognition();
+                    recognition.lang = 'en-US';
+                    recognition.continuous = false;
+                    recognition.interimResults = false;
+
+                    recognition.onstart = () => setStatus('listening');
+                    recognition.onresult = (event) => {
+                        const text = event.results[0][0].transcript;
+                        setTranscript(text);
+                        validate(text);
+                        setStatus('idle');
+                    };
+                    recognition.onerror = (e) => {
+                        setStatus('idle');
+                        console.log(e.error);
+                        if (e.error === 'not-allowed') setMessage("Permissão negada.");
+                        else if (e.error === 'no-speech') setMessage("Não ouvi nada.");
+                        else { setMessage("Erro. Tente digitar."); setMode('text'); }
+                    };
+
+                    recognitionRef.current = recognition;
+                    recognition.start();
+                } catch (e) {
+                    setMode('text');
+                    setMessage("Erro no navegador. Use Texto.");
+                }
+            };
+
+            const validate = (inputUser) => {
+                const cleanInput = inputUser.toLowerCase().replace(/[^a-z0-9 ]/g, "").trim();
+                const cleanTarget = currentPhrase.toLowerCase().replace(/[^a-z0-9 ]/g, "").trim();
+
+                if (cleanInput === cleanTarget) {
+                    setFeedback('correct');
+                    setScore(s => s + 10);
+                    setMessage("Perfeito!");
+                } else {
+                    setFeedback('incorrect');
+                    setMessage("Tente novamente.");
+                }
+            };
+
+            return (
+                <div className="min-h-screen pb-10 max-w-md mx-auto bg-slate-50 shadow-2xl min-h-screen flex flex-col">
+                    {/* Header */}
+                    <div className="bg-emerald-600 text-white p-4 shadow-lg sticky top-0 z-10 flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                            <Icon name="brain-circuit" className="w-6 h-6" />
+                            <span className="font-bold text-lg">Tutor Infinito</span>
+                        </div>
+                        <div className="bg-emerald-800 px-3 py-1 rounded-full flex gap-1 items-center font-bold">
+                            <Icon name="trophy" className="w-4 h-4 text-yellow-400" /> {score}
+                        </div>
+                    </div>
+
+                    <main className="p-4 flex flex-col gap-6 mt-2 flex-1">
+                        
+                        {/* Level Selector */}
+                        <div className="flex bg-white p-1 rounded-xl shadow-sm border border-slate-200">
+                            {['beginner', 'intermediate', 'advanced'].map(lvl => (
+                                <button
+                                    key={lvl}
+                                    onClick={() => setLevel(lvl)}
+                                    className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${
+                                        level === lvl ? 'bg-emerald-100 text-emerald-700' : 'text-slate-400 hover:bg-slate-50'
+                                    }`}
+                                >
+                                    {lvl}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Card Principal */}
+                        <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-6 flex flex-col items-center text-center gap-6 relative">
+                            
+                            <div className="w-full">
+                                <div className="flex justify-between items-center mb-4">
+                                   <span className="text-xs text-slate-400 font-bold uppercase">Frase Aleatória</span>
+                                   <button onClick={generateNewPhrase} className="text-xs bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded text-slate-600 flex items-center gap-1">
+                                     <Icon name="shuffle" className="w-3 h-3" /> Nova
+                                   </button>
+                                </div>
+                                
+                                <h2 className="text-2xl font-medium text-slate-800 leading-tight min-h-[4rem] flex items-center justify-center select-none">
+                                    {currentPhrase}
+                                </h2>
+                            </div>
+
+                            <button 
+                                onClick={speak}
+                                className="w-full py-3 rounded-xl bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-semibold flex items-center justify-center gap-2 transition-colors active:bg-indigo-200"
+                            >
+                                <Icon name="volume-2" className="w-5 h-5" /> Ouvir
+                            </button>
+                            
+                            <hr className="w-full border-slate-100" />
+
+                            {/* Modos */}
+                            <div className="flex gap-4 text-sm justify-center w-full">
+                                <button onClick={() => setMode('voice')} className={`flex items-center gap-1 ${mode==='voice'?'text-emerald-600 font-bold':'text-slate-400'}`}><Icon name="mic" className="w-4 h-4"/> Voz</button>
+                                <button onClick={() => setMode('text')} className={`flex items-center gap-1 ${mode==='text'?'text-emerald-600 font-bold':'text-slate-400'}`}><Icon name="keyboard" className="w-4 h-4"/> Texto</button>
+                            </div>
+
+                            {/* Input Area */}
+                            <div className="w-full flex flex-col items-center h-24 justify-center">
+                                {mode === 'voice' ? (
+                                    <div className="relative">
+                                        {status === 'listening' && <div className="absolute inset-0 bg-emerald-400 rounded-full animate-ping opacity-20"></div>}
+                                        <button
+                                            onClick={listen}
+                                            disabled={status === 'listening' || feedback === 'correct'}
+                                            className={`relative z-10 w-20 h-20 rounded-full flex items-center justify-center shadow-lg transition-transform active:scale-95 ${
+                                                status === 'listening' ? 'bg-red-500 text-white' : 
+                                                feedback === 'correct' ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-white'
+                                            }`}
+                                        >
+                                            <Icon name="mic" className="w-8 h-8" />
+                                        </button>
+                                        <p className="mt-2 text-xs text-slate-400 text-center">{status === 'listening' ? "Ouvindo..." : "Toque p/ falar"}</p>
+                                    </div>
+                                ) : (
+                                    <form onSubmit={(e) => { e.preventDefault(); validate(transcript); }} className="w-full flex gap-2">
+                                        <input 
+                                            className="flex-1 p-3 border rounded-xl outline-none focus:ring-2 focus:ring-emerald-500" 
+                                            placeholder="Digite em inglês..." 
+                                            value={transcript}
+                                            onChange={e => setTranscript(e.target.value)}
+                                        />
+                                        <button type="submit" className="bg-emerald-600 text-white px-4 rounded-xl font-bold">OK</button>
+                                    </form>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Feedback */}
+                        {(feedback || message) && (
+                            <div className={`p-4 rounded-xl border flex items-start gap-3 animate-pulse-once ${
+                                feedback === 'correct' ? 'bg-emerald-50 border-emerald-200' : 
+                                feedback === 'incorrect' ? 'bg-red-50 border-red-200' : 'bg-white border-slate-200'
+                            }`}>
+                                {feedback === 'correct' ? <Icon name="check-circle" className="text-emerald-600 shrink-0 w-6 h-6"/> : 
+                                feedback === 'incorrect' ? <Icon name="x-circle" className="text-red-600 shrink-0 w-6 h-6"/> : 
+                                <Icon name="alert-circle" className="text-slate-400 shrink-0 w-6 h-6"/>}
+                                <div>
+                                    <p className={`font-bold ${feedback === 'correct' ? 'text-emerald-800': feedback === 'incorrect' ? 'text-red-800' : 'text-slate-600'}`}>
+                                        {message || (feedback === 'correct' ? "Excelente!" : "Incorreto")}
+                                    </p>
+                                    {transcript && mode === 'voice' && <p className="text-sm text-slate-500 mt-1">Ouvi: "{transcript}"</p>}
+                                </div>
+                            </div>
+                        )}
+
+                        <button 
+                            onClick={generateNewPhrase}
+                            className="mt-auto bg-slate-800 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:bg-slate-900 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                        >
+                            Próxima <Icon name="chevron-right" className="w-5 h-5" />
+                        </button>
+                    </main>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<EnglishTutor />);
+    </script>
+</body>
+</html>
+
