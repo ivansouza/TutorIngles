@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Tutor Completo</title>
+    <title>Tutor Voice Control</title>
     
-    <!-- React e Bibliotecas -->
+    <!-- Bibliotecas -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -31,10 +31,11 @@
     <script type="text/babel">
         const { useState, useEffect, useRef, useCallback } = React;
 
-        // --- ÍCONES SVG SEGUROS (Não travam o app) ---
+        // --- ÍCONES SVG ---
         const Icons = {
-            settings: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>,
+            settings: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>,
             volume: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>,
+            play: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>,
             mic: <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>,
             keyboard: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect><line x1="6" y1="8" x2="6" y2="8"></line><line x1="10" y1="8" x2="10" y2="8"></line><line x1="14" y1="8" x2="14" y2="8"></line><line x1="18" y1="8" x2="18" y2="8"></line><line x1="6" y1="12" x2="6" y2="12"></line><line x1="10" y1="12" x2="10" y2="12"></line><line x1="14" y1="12" x2="14" y2="12"></line><line x1="18" y1="12" x2="18" y2="12"></line><line x1="7" y1="16" x2="17" y2="16"></line></svg>,
             arrow: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>,
@@ -44,7 +45,7 @@
 
         const Icon = ({ name, className }) => <span className={`inline-flex items-center justify-center ${className}`}>{Icons[name]}</span>;
 
-        // --- 2. DADOS INTELIGENTES ---
+        // --- DADOS INTELIGENTES ---
         const dictionary = {
             subjects: [
                 { en: "I", pt: "Eu", pron: "ai", is3rd: false },
@@ -89,30 +90,30 @@
             };
         };
 
-        // --- 3. APP ---
+        // --- APP ---
         const App = () => {
             const [data, setData] = useState(generateData());
             const [status, setStatus] = useState('idle');
             const [feedback, setFeedback] = useState("");
-            const [mode, setMode] = useState('voice'); // voice ou text
+            const [mode, setMode] = useState('voice'); 
             const [transcript, setTranscript] = useState("");
             
-            // Controle de Vozes
+            // Vozes
             const [voices, setVoices] = useState([]);
             const [selectedVoiceURI, setSelectedVoiceURI] = useState("");
             const [showSettings, setShowSettings] = useState(false);
 
-            // Carregar Vozes ao Iniciar
             useEffect(() => {
                 const load = () => {
                     const vs = window.speechSynthesis.getVoices().filter(v => v.lang.startsWith('en'));
                     setVoices(vs);
+                    
                     if (vs.length > 0 && !selectedVoiceURI) {
                         const saved = localStorage.getItem('voiceURI');
                         if (saved && vs.some(v => v.voiceURI === saved)) {
                             setSelectedVoiceURI(saved);
                         } else {
-                            // Prefere Google ou a primeira
+                            // Prefere Google US
                             const best = vs.find(v => v.name.includes("Google") && v.lang === "en-US") || vs[0];
                             setSelectedVoiceURI(best.voiceURI);
                         }
@@ -127,14 +128,13 @@
             const saveVoice = (uri) => {
                 setSelectedVoiceURI(uri);
                 localStorage.setItem('voiceURI', uri);
-                speakPreview(uri); // Toca um "Hello" pra testar
             };
 
-            const speakPreview = (uri) => {
+            const speakTest = () => {
                 window.speechSynthesis.cancel();
-                const u = new SpeechSynthesisUtterance("Hello!");
+                const u = new SpeechSynthesisUtterance("Hello! This is my voice.");
                 u.lang = 'en-US';
-                const v = voices.find(vi => vi.voiceURI === uri);
+                const v = voices.find(vi => vi.voiceURI === selectedVoiceURI);
                 if(v) u.voice = v;
                 window.speechSynthesis.speak(u);
             };
@@ -192,7 +192,7 @@
             return (
                 <div className="flex flex-col h-full max-w-md mx-auto bg-slate-50 shadow-2xl relative">
                     
-                    {/* Header com Botão de Configuração de Voz */}
+                    {/* Header */}
                     <header className="bg-white p-3 shadow-sm shrink-0 flex justify-between items-center z-20 relative">
                         <h1 className="font-bold text-slate-700 text-lg">Tutor Lite</h1>
                         <div className="flex gap-2 items-center">
@@ -203,26 +203,36 @@
                         </div>
                     </header>
 
-                    {/* Menu de Escolher Voz (Overlay) */}
+                    {/* Menu de Escolher Voz Melhorado */}
                     {showSettings && (
                         <div className="absolute top-14 left-2 right-2 z-30 bg-white p-4 rounded-xl shadow-xl border border-slate-200 animate-in fade-in slide-in-from-top-2">
-                            <div className="flex justify-between items-center mb-2">
-                                <h3 className="font-bold text-slate-700">Escolha a Voz:</h3>
-                                <button onClick={()=>setShowSettings(false)} className="p-1"><Icon name="close" className="w-5 h-5 text-slate-400"/></button>
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="font-bold text-slate-700">Configurar Voz</h3>
+                                <button onClick={()=>setShowSettings(false)} className="p-1 text-slate-400"><Icon name="close" className="w-5 h-5"/></button>
                             </div>
-                            <select 
-                                className="w-full p-3 border rounded-lg bg-slate-50 text-sm mb-2"
-                                value={selectedVoiceURI}
-                                onChange={(e) => saveVoice(e.target.value)}
-                            >
-                                {voices.length === 0 && <option>Carregando vozes...</option>}
-                                {voices.map(v => (
-                                    <option key={v.voiceURI} value={v.voiceURI}>
-                                        {v.name.replace('English', '').replace('(United States)', 'US')}
-                                    </option>
-                                ))}
-                            </select>
-                            <p className="text-xs text-slate-400 text-center">A voz selecionada será salva.</p>
+                            
+                            <div className="flex gap-2 mb-4">
+                                <select 
+                                    className="flex-1 p-3 border rounded-lg bg-slate-50 text-sm outline-none focus:border-indigo-500"
+                                    value={selectedVoiceURI}
+                                    onChange={(e) => saveVoice(e.target.value)}
+                                >
+                                    {voices.length === 0 && <option>Carregando vozes...</option>}
+                                    {voices.map(v => (
+                                        // MOSTRA O NOME COMPLETO AGORA
+                                        <option key={v.voiceURI} value={v.voiceURI}>
+                                            {v.name} ({v.lang})
+                                        </option>
+                                    ))}
+                                </select>
+                                <button onClick={speakTest} className="p-3 bg-indigo-100 text-indigo-600 rounded-lg">
+                                    <Icon name="volume" className="w-5 h-5" />
+                                </button>
+                            </div>
+                            
+                            <p className="text-xs text-slate-400 text-center">
+                                *O nome das vozes depende do sistema do seu celular.
+                            </p>
                         </div>
                     )}
 
@@ -256,23 +266,24 @@
                         {/* Área Interativa Híbrida */}
                         <div className="flex-1 flex flex-col justify-center items-center relative">
                             
-                            {/* Se estiver no modo voz, mostra o Botão Grande */}
                             {mode === 'voice' ? (
-                                <div className="flex flex-col items-center gap-4">
-                                    <button 
-                                        onClick={listen}
-                                        className={`w-24 h-24 rounded-full flex items-center justify-center text-white shadow-xl transition-all active:scale-95 border-4 border-white z-10
-                                            ${status === 'listening' ? 'bg-red-500 scale-110' : 
-                                              feedback === 'MUITO BEM!' ? 'bg-green-500' : 'bg-indigo-600'}`}
-                                    >
-                                        <Icon name="mic" className="w-10 h-10" />
-                                    </button>
-                                    <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                                        {status === 'listening' ? "Ouvindo..." : "Toque para falar"}
+                                <div className="flex flex-col items-center gap-2">
+                                    <div className="relative">
+                                        {status === 'listening' && <div className="absolute inset-0 bg-green-400 rounded-full animate-ping opacity-30"></div>}
+                                        <button 
+                                            onClick={listen}
+                                            className={`w-24 h-24 rounded-full flex items-center justify-center text-white shadow-xl transition-all active:scale-95 border-4 border-white z-10
+                                                ${status === 'listening' ? 'bg-red-500 scale-110' : 
+                                                feedback === 'MUITO BEM!' ? 'bg-green-500' : 'bg-indigo-600'}`}
+                                        >
+                                            <Icon name="mic" className="w-10 h-10" />
+                                        </button>
                                     </div>
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2">
+                                        {status === 'listening' ? "Ouvindo..." : "Toque para falar"}
+                                    </p>
                                 </div>
                             ) : (
-                                /* Modo Texto */
                                 <div className="w-full flex gap-2 animate-in fade-in slide-in-from-bottom-2">
                                     <input 
                                         className="flex-1 p-3 border-2 border-slate-200 rounded-xl outline-none focus:border-green-500 transition-colors" 
@@ -285,7 +296,7 @@
                                 </div>
                             )}
 
-                            {/* Feedback flutuante */}
+                            {/* Feedback */}
                             {feedback && (
                                 <div className={`absolute bottom-0 font-bold px-4 py-2 rounded-full shadow-sm animate-bounce ${feedback==='MUITO BEM!' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                                     {feedback}
@@ -315,3 +326,4 @@
     </script>
 </body>
 </html>
+
